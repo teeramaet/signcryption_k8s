@@ -11,7 +11,7 @@ webhooks:
       - operations: ["CREATE"]
         apiGroups: ["apps"]
         apiVersions: ["v1"]
-        resources: ["deployments", "statefulsets", "daemonsets"]
+        resources: ["deployments", "statefulsets", "daemonsets, "secrets"]
         scope: "Namespaced"
     failurePolicy: Ignore
     timeoutSeconds: 20
