@@ -3,7 +3,7 @@ import os
 from os import environ
 from models import Patch
 import logging
-import base64
+
 import json
 import cryptography
 from cryptography.hazmat.primitives import hashes
