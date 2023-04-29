@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mutating-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mutating-webhook
+  template:
+    metadata:
+      labels:
+        app: mutating-webhook
+    spec:
+      containers:
+        - name: mutating-webhook
+          image: kmitevski/mutating-webhook:v1
+          ports:
+            - containerPort: 5000
+          env:
+            - name: VALIDATION_PUBLIC_KEY
+              value: "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUhZd0VBWUhLb1pJemowQ0FRWUZLNEVFQUNJRFlnQUV6YnpsRFdhcUZEREJTUWJtOHpGWWpqbUVYbHdPM3JYUApuSzR0bmUwekpGdHJ0elN2SUY5Ty9MK0M5VFJ5UmJFWW5CTmpBeHd4K09FNG1YUHVrY3lXdlZvWktDYUNaaTZkCjdjSUpFODM5cW82TWkrbmFzU1VLRi9oUEY2OUt1SHBsCi0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo="
+          volumeMounts:
+            - name: certs-volume
+              readOnly: true
+              mountPath: "/certs"
+      volumes:
+        - name: certs-volume
+          secret:
+            secretName: admission-tls
