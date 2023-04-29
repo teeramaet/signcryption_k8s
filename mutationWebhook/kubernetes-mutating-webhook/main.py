@@ -52,6 +52,7 @@ def mutate_request(request: dict = Body(...)):
     mutation_pub_key_b64 = base64.b64encode(serialized_public).decode("utf-8")
     shared_key = private_key.exchange(ec.ECDH(), validation_pub_key)
     signature = private_key.sign(yaml_file_b64, ec.ECDSA(hashes.SHA256()))
+    signature_b64 = base64.b64encode(signature).decode("utf-8")
     derived_key = HKDF(
         algorithm=hashes.SHA256(),
         length=32,
@@ -92,7 +93,7 @@ def mutate_request(request: dict = Body(...)):
         Patch(
             op="add",
             path="/metadata/annotations",
-            value={"digitalSignature": f"{signature}"},
+            value={"digitalSignature": f"{signature_b64}"},
         ).dict()
     )
 
