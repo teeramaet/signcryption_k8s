@@ -22,25 +22,39 @@ def validating_webhook():
     uid = request_info["request"].get("uid")
 
     if request_info["request"]["object"]["metadata"]["annotations"].get():
-        signature_b64 = request_info["request"]["object"]["metadata"]["annotations"][
+        if request_info["request"]["object"]["metadata"]["annotations"][
             "digitalSignature_"
-        ].get()
-        yaml_file_b64 = request_info["request"]["object"]["metadata"]["annotations"][
-            "yamlFile"
-        ]
-        public_key_b64 = request_info["request"]["object"]["metadata"]["annotations"][
-            "publicKeys"
-        ]
+        ].get():
+            signature_b64 = request_info["request"]["object"]["metadata"][
+                "annotations"
+            ]["digitalSignature_"].get()
+        else:
+            return admission_response(False, uid, f"The label aren't set!")
+
+        if request_info["request"]["object"]["metadata"]["annotations"]["yamlFile"]:
+            yaml_file_b64 = request_info["request"]["object"]["metadata"][
+                "annotations"
+            ]["yamlFile"]
+        else:
+            return admission_response(False, uid, f"The label aren't set!")
+
+        if request_info["request"]["object"]["metadata"]["annotations"]["publicKeys"]:
+            public_key_b64 = request_info["request"]["object"]["metadata"][
+                "annotations"
+            ]["publicKeys"]
+        else:
+            return admission_response(False, uid, f"The label aren't set!")
+
         signature = base64.b64decode(signature_b64.encode("utf-8"))
         yaml_file = base64.b64decode(yaml_file_b64.encode("utf-8"))
         public_key = base64.b64decode(public_key_b64.encode("utf-8"))
+        try:
+            public_key.verify(signature, yaml_file, ec.ECDSA(hashes.SHA256()))
 
-        status = public_key.verify(signature, yaml_file, ec.ECDSA(hashes.SHA256()))
-
-        webhook.logger.info(
-            f'Object {request_info["request"]["object"]["kind"]}/{request_info["request"]["object"]["metadata"]["name"]} contains the required "{webhook.config["LABEL"]}" label. Allowing the request.'
-        )
-        return admission_response(True, uid, f"{webhook.config['LABEL']} label exists.")
+        except:
+            return admission_response(False, uid, f"Invalid signature !!! ...")
+        else:
+            return admission_response(True, uid, f"Integrity confirmed !!! ...")
     else:
         webhook.logger.error(
             f'Object {request_info["request"]["object"]["kind"]}/{request_info["request"]["object"]["metadata"]["name"]} doesn\'t have the required "{webhook.config["LABEL"]}" label. Request rejected!'
