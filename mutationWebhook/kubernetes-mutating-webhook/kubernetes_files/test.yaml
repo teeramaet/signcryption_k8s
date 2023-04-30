@@ -12,8 +12,8 @@ spec:
         app: nginx
     spec:
       containers:
-      - name: nginx
-        image: nginx:1.14.2
+        - name: nginx
+          image: nginx:1.14.2
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -30,8 +30,8 @@ spec:
         app: nginx
     spec:
       containers:
-      - name: nginx
-        image: nginx:1.14.2
+        - name: nginx
+          image: nginx:1.14.2
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -46,11 +46,9 @@ spec:
       labels:
         app: nginx
     spec:
-    nodeSelector:
-      hostname: Docker-desktop
       containers:
-      - name: nginx
-        image: nginx:1.14.2
+        - name: nginx
+          image: nginx:1.14.2
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -68,5 +66,5 @@ spec:
       nodeSelector:
         test: test
       containers:
-      - name: nginx
-        image: nginx:1.14.2
+        - name: nginx
+          image: nginx:1.14.2

@@ -24,12 +24,13 @@ webhook.setLevel(logging.INFO)
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s")
 
 
-validation_pub_key = environ.get("VALIDATION_PUBLIC_KEY")
-if not validation_pub_key:
+validation_pub_key_b64 = environ.get("VALIDATION_PUBLIC_KEY")
+if not validation_pub_key_b64:
     webhook.error(
         "The required environment variable 'VALIDATION_PUBLIC_KEY' isn't set."
     )
     exit(1)
+validation_pub_key = base64.b64decode(validation_pub_key_b64.encode("utf-8"))
 
 
 # -----------------------Mutate-----------------------
@@ -39,20 +40,26 @@ def mutate_request(request: dict = Body(...)):
     patch_operations = []
     uid = request["request"]["uid"]
     object_in = request["request"]["object"]
-    metadata = request["request"]["object"]["metadata"]
     kind = request["request"]["object"]["kind"]
-    yaml_file_b64 = base64.b64encode(json.dumps(object_in))
+    yaml_file_b64 = base64.b64encode(json.dumps(object_in).encode("utf-8")).decode(
+        "utf-8"
+    )
 
     private_key = ec.generate_private_key(ec.SECP384R1())
-    mutation_pub_key = private_key.public_key
+    mutation_pub_key = private_key.public_key()
     serialized_public = mutation_pub_key.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo,
     )
     mutation_pub_key_b64 = base64.b64encode(serialized_public).decode("utf-8")
-    shared_key = private_key.exchange(ec.ECDH(), validation_pub_key)
-    signature = private_key.sign(yaml_file_b64, ec.ECDSA(hashes.SHA256()))
-    signature_b64 = base64.b64encode(serialized_public).decode("utf-8")
+    loaded_public_key = serialization.load_pem_public_key(
+        validation_pub_key,
+    )
+    shared_key = private_key.exchange(ec.ECDH(), loaded_public_key)
+    signature = private_key.sign(
+        yaml_file_b64.encode("utf-8"), ec.ECDSA(hashes.SHA256())
+    )
+    signature_b64 = base64.b64encode(signature).decode("utf-8")
     derived_key = HKDF(
         algorithm=hashes.SHA256(),
         length=32,
@@ -64,8 +71,10 @@ def mutate_request(request: dict = Body(...)):
     cipher = Cipher(algorithms.AES(derived_key), modes.CBC(iv))
     encryptor = cipher.encryptor()
 
+    webhook.info(f"Got '{signature_b64}' as signature label patching...")
+    webhook.info(f"Got '{yaml_file_b64}' as yaml label patching...")
     webhook.info(
-        f"Got '{signature}' as signature label, Got '{yaml_file_b64}' as yaml label, Got '{mutation_pub_key_b64}' as mutation_pub_key label, patching..."
+        f" Got '{mutation_pub_key_b64}' as mutation_pub_key label, patching..."
     )
 
     # -----------------------Patch Secret-----------------------
