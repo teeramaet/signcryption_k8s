@@ -9,10 +9,10 @@ webhooks:
     sideEffects: None
     rules:
       - operations: ["CREATE"]
-        apiGroups: ["apps"]
-        apiVersions: ["v1"]
-        resources: ["deployments", "statefulsets", "daemonsets"]
-        scope: "Namespaced"
+        apiGroups: ["*"]
+        apiVersions: ["*"]
+        resources: ["*/*"]
+        scope: "*"
     failurePolicy: Ignore
     timeoutSeconds: 20
     clientConfig:

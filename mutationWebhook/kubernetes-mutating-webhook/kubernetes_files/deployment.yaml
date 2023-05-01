@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: mutating-webhook
-          image: 248624862486/mutation-signcryption-updated
+          image: 248624862486/mutation-webhhok-secret:v2
           ports:
             - containerPort: 5000
           env:

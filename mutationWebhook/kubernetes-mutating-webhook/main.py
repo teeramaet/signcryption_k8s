@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import padding
 
 app = FastAPI()
 
@@ -68,8 +69,14 @@ def mutate_request(request: dict = Body(...)):
     ).derive(shared_key)
 
     iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(derived_key), modes.CBC(iv))
-    encryptor = cipher.encryptor()
+    iv_b64 = base64.b64encode(iv).decode("utf-8")
+    patch_operations.append(
+        Patch(
+            op="add",
+            path="/metadata/annotations/iv",
+            value=f"{iv_b64}",
+        ).dict()
+    )
 
     webhook.info(f"Got '{signature_b64}' as signature label patching...")
     webhook.info(f"Got '{yaml_file_b64}' as yaml label patching...")
@@ -79,21 +86,24 @@ def mutate_request(request: dict = Body(...)):
 
     # -----------------------Patch Secret-----------------------
     if "Secret" in kind:
-        webhook.info(
-            f"This is kubernetes secret file type. We will encrypt the data for confidentiality"
-        )
-        dict_data = kind["data"]
-
-        for key, value in dict_data.items():
-            dict_data[key] = encryptor.update(value) + encryptor.finalize()
+        for key, value in object_in["data"].items():
+            cipher = Cipher(algorithms.AES(derived_key), modes.CBC(iv))
+            encryptor = cipher.encryptor()
+            padder = padding.PKCS7(128).padder()
+            byte_value = value.encode("utf-8")
+            padded_data = padder.update(byte_value)
+            padded_data += padder.finalize()
+            object_in["data"][key] = base64.b64encode(
+                encryptor.update(padded_data) + encryptor.finalize()
+            ).decode("utf-8")
 
         # -----------------------Encrypt-----------------------
-        for key, value in dict_data.items():
+        for key, value in object_in["data"].items():
             patch_operations.append(
                 Patch(
                     op="replace",
-                    path="/data",
-                    value={f"{key}": f"{value}"},
+                    path=f"/data/{key}",
+                    value=f"{value}",
                 ).dict()
             )
 
@@ -101,28 +111,29 @@ def mutate_request(request: dict = Body(...)):
     patch_operations.append(
         Patch(
             op="add",
-            path="/metadata/annotations",
-            value={"digitalSignature": f"{signature_b64}"},
+            path="/metadata/annotations/digitalSignature",
+            value=f"{signature_b64}",
         ).dict()
     )
 
     patch_operations.append(
-        Patch(
-            op="add",
-            path="/metadata/annotations",
-            value={"yamlFile": f"{yaml_file_b64}"},
-        ).dict()
+        {
+            "op": "add",
+            "path": "/metadata/annotations/yamlFile",
+            "value": f"{yaml_file_b64}",
+        }
     )
-
     patch_operations.append(
         Patch(
             op="add",
-            path="/metadata/annotations",
-            value={"publicKey": f"{mutation_pub_key_b64}"},
+            path="/metadata/annotations/mutate-pub-key",
+            value=f"{mutation_pub_key_b64}",
         ).dict()
     )
 
-    patch = json.dumps(patch_operations).encode()
+    patch = base64.b64encode(json.dumps(patch_operations).encode("utf-8")).decode(
+        "utf-8"
+    )
     webhook.info(f"Finish mutating...")
     return {
         "apiVersion": "admission.k8s.io/v1",
@@ -131,7 +142,9 @@ def mutate_request(request: dict = Body(...)):
             "uid": uid,
             "allowed": True,
             "patchType": "JSONPatch",
-            "status": "Finish apply the mutation process",
+            "status": {
+                "message": "Finish apply the mutation process",
+            },
             "patch": patch,
         },
     }
