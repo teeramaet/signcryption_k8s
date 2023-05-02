@@ -1,0 +1,4 @@
+flask_wtf
+wtforms==2.3.3
+flask
+email_validator

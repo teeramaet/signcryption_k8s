@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Ejemplo Flask</title>
+  </head>
+  <body>
+    <form action="./" method="post">
+      <fieldset>
+        <legend>Base64_Encrypt_Form</legend>
+        <div>
+          {{ form.name.label() }} {{ form.name() }}
+          <br />
+          {% for message in form.name.errors %}
+          <div>{{ message }}</div>
+          <div>{{ message }}</div>
+          {% endfor %}
+          <br />
+          {{ form.hidden_tag() }} {{ form.submit() }}
+        </div>
+      </fieldset>
+    </form>
+  </body>
+</html>

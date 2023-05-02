@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Base64_Encrypt_Form</title>
+  </head>
+  <body>
+    <legend>Base64_Encrypt_Finished</legend>
+    <div>Input value: {{ name }}</div>
+    <div>Base64_encrypt: <span id="copy">{{ last_name }}</span></div>
+    <button onclick="copyText()">Copy text</button>
+    <script>
+      function copyText() {
+        const text = document.getElementById("copy");
+        navigator.clipboard.writeText(text.innerText);
+      }
+    </script>
+  </body>
+</html>
