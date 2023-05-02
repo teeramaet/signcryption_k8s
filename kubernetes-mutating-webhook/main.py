@@ -1,20 +1,33 @@
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, Body
+import os
 from os import environ
+from models import Patch
 import logging
 import base64
+import json
 import cryptography
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
-webhook = Flask(__name__)
+app = FastAPI()
 
-webhook.logger.setLevel(logging.INFO)
+# -----------------------Set log-----------------------
+webhook = logging.getLogger(__name__)
+uvicorn_logger = logging.getLogger("uvicorn")
+uvicorn_logger.removeHandler(
+    uvicorn_logger.handlers[0]
+)  # Turn off uvicorn duplicate log
+webhook.setLevel(logging.INFO)
+logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s")
 
 
-@webhook.route("/validate", methods=["POST"])
-def validate_request():
-    request = request.get_json()
+# -----------------------Mutate-----------------------
+@app.post("/validate")
+def validate_request(request: dict = Body(...)):
     uid = request["request"]["uid"]
     object_in = request["request"]["object"]
 

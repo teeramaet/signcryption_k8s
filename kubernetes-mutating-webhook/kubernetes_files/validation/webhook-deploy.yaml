@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: 248624862486/mutate_sym_ecc:v1
+          image: 248624862486/webhook_sym_ecc:v1
           ports:
             - containerPort: 443
           env:
