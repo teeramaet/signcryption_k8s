@@ -6,6 +6,7 @@ import logging
 import base64
 import json
 import cryptography
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -198,9 +199,8 @@ def validate_request(request: dict = Body(...)):
         except:
             return admission_response(False, uid, f"Invalid signature !!! ...")
         else:
-            
             return admission_response(True, uid, f"Integrity confirmed !!! ...")
-            
+
     else:
         webhook.logger.error(
             f'Object {request["request"]["object"]["kind"]}/{request["request"]["object"]["metadata"]["name"]} doesn\'t have the required label. Request rejected!'
