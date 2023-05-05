@@ -1,16 +1,45 @@
-# import library
-import unittest
+from flask import Flask, request, jsonify
+from os import environ
+import logging
+import base64
+import cryptography
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+
+signature_b64 = "MGYCMQC+BmT/6kgqUCxNHx/uTK7HOa0QXHF0/NILRJzx3BFtyC15z0M+EAXjV98z+t8jNSwCMQDVcGVQNUfQSAJ/SAP/Mfr+ehav8OmMERY64KAgzxjhgKqOgOLCpBx4/qNaNTmnh+Y="
+yaml_file_b64 = "eyJraW5kIjogIlNlY3JldCIsICJhcGlWZXJzaW9uIjogInYxIiwgIm1ldGFkYXRhIjogeyJuYW1lIjogInRlc3QxIiwgIm5hbWVzcGFjZSI6ICJkZWZhdWx0IiwgImNyZWF0aW9uVGltZXN0YW1wIjogbnVsbCwgImFubm90YXRpb25zIjogeyJrdWJlY3RsLmt1YmVybmV0ZXMuaW8vbGFzdC1hcHBsaWVkLWNvbmZpZ3VyYXRpb24iOiAie1wiYXBpVmVyc2lvblwiOlwidjFcIixcImRhdGFcIjp7XCJ3ZWJob29rLmNydFwiOlwiVCtyY3doajhDcXZtY245eEdjVVc2Zz09XCIsXCJ3ZWJob29rLmtleVwiOlwieThva3VWZmRmSTNKRCtyNTFKUUFCQT09XCJ9LFwia2luZFwiOlwiU2VjcmV0XCIsXCJtZXRhZGF0YVwiOntcImFubm90YXRpb25zXCI6e1wid2ViaG9vb2stZW5hYmxlZFwiOlwidHJ1ZVwifSxcIm5hbWVcIjpcInRlc3QxXCIsXCJuYW1lc3BhY2VcIjpcImRlZmF1bHRcIn0sXCJ0eXBlXCI6XCJPcGFxdWVcIn1cbiIsICJ3ZWJob29vay1lbmFibGVkIjogInRydWUifSwgIm1hbmFnZWRGaWVsZHMiOiBbeyJtYW5hZ2VyIjogImt1YmVjdGwtY2xpZW50LXNpZGUtYXBwbHkiLCAib3BlcmF0aW9uIjogIlVwZGF0ZSIsICJhcGlWZXJzaW9uIjogInYxIiwgInRpbWUiOiAiMjAyMy0wNS0wMlQxMjoxODoxMFoiLCAiZmllbGRzVHlwZSI6ICJGaWVsZHNWMSIsICJmaWVsZHNWMSI6IHsiZjpkYXRhIjogeyIuIjoge30sICJmOndlYmhvb2suY3J0Ijoge30sICJmOndlYmhvb2sua2V5Ijoge319LCAiZjptZXRhZGF0YSI6IHsiZjphbm5vdGF0aW9ucyI6IHsiLiI6IHt9LCAiZjprdWJlY3RsLmt1YmVybmV0ZXMuaW8vbGFzdC1hcHBsaWVkLWNvbmZpZ3VyYXRpb24iOiB7fSwgImY6d2ViaG9vb2stZW5hYmxlZCI6IHt9fX0sICJmOnR5cGUiOiB7fX19XX0sICJkYXRhIjogeyJ3ZWJob29rLmNydCI6ICJUK3Jjd2hqOENxdm1jbjl4R2NVVzZnPT0iLCAid2ViaG9vay5rZXkiOiAieThva3VWZmRmSTNKRCtyNTFKUUFCQT09In0sICJ0eXBlIjogIk9wYXF1ZSJ9"
+
+mutation_pub_key_b64 = "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUhZd0VBWUhLb1pJemowQ0FRWUZLNEVFQUNJRFlnQUU4WXdVVXhMemdHT0Jnd1lWVXg2bGphckNNVHJPUVF2bQpuU3MwVHNlQ0hDdjlROWhqbzdqajl2N1dJWXlXbjdBWGNUZVMyUmtTTWxWRE1ETEVJODlKVkFJR1B6SkcxL1BQCkhBUzZxdXVjMXNDSC9HeHVGOXZoRndTZ3hJak9PbUpUCi0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo="
+
+signature_b64 = "MGYCMQCcGfXnJ6iB7X/kBd/lvUL0hRLEXBs7YCSuXxeWIWL8Wt+desoOAbh0p7vmrL9C/9oCMQDP3nL2vkIsrt2Ks6tdiP44uydLD8A5tZrnrmr9ckjdiVCYXA1QMCQOmFfPdd0atkE="
+yaml_file_b64 = "eyJraW5kIjogIlNlY3JldCIsICJhcGlWZXJzaW9uIjogInYxIiwgIm1ldGFkYXRhIjogeyJuYW1lIjogInRlc3QyIiwgIm5hbWVzcGFjZSI6ICJkZWZhdWx0IiwgImNyZWF0aW9uVGltZXN0YW1wIjogbnVsbCwgImFubm90YXRpb25zIjogeyJqdXN0Tm90aGluZyI6ICJub3RoaW5nIiwgImt1YmVjdGwua3ViZXJuZXRlcy5pby9sYXN0LWFwcGxpZWQtY29uZmlndXJhdGlvbiI6ICJ7XCJhcGlWZXJzaW9uXCI6XCJ2MVwiLFwiZGF0YVwiOntcInBhc3N3b3JkXCI6XCJFRWZLOVRGWWFOK0ZKTDhVS2tyQUtnPT1cIixcInVzZXJuYW1lXCI6XCJDZDV6MnRJbm40UlEwK1ZKUm5NWmx3PT1cIn0sXCJraW5kXCI6XCJTZWNyZXRcIixcIm1ldGFkYXRhXCI6e1wiYW5ub3RhdGlvbnNcIjp7XCJqdXN0Tm90aGluZ1wiOlwibm90aGluZ1wifSxcIm5hbWVcIjpcInRlc3QyXCIsXCJuYW1lc3BhY2VcIjpcImRlZmF1bHRcIn0sXCJ0eXBlXCI6XCJPcGFxdWVcIn1cbiJ9LCAibWFuYWdlZEZpZWxkcyI6IFt7Im1hbmFnZXIiOiAia3ViZWN0bC1jbGllbnQtc2lkZS1hcHBseSIsICJvcGVyYXRpb24iOiAiVXBkYXRlIiwgImFwaVZlcnNpb24iOiAidjEiLCAidGltZSI6ICIyMDIzLTA1LTAyVDEyOjE4OjEwWiIsICJmaWVsZHNUeXBlIjogIkZpZWxkc1YxIiwgImZpZWxkc1YxIjogeyJmOmRhdGEiOiB7Ii4iOiB7fSwgImY6cGFzc3dvcmQiOiB7fSwgImY6dXNlcm5hbWUiOiB7fX0sICJmOm1ldGFkYXRhIjogeyJmOmFubm90YXRpb25zIjogeyIuIjoge30sICJmOmp1c3ROb3RoaW5nIjoge30sICJmOmt1YmVjdGwua3ViZXJuZXRlcy5pby9sYXN0LWFwcGxpZWQtY29uZmlndXJhdGlvbiI6IHt9fX0sICJmOnR5cGUiOiB7fX19XX0sICJkYXRhIjogeyJwYXNzd29yZCI6ICJFRWZLOVRGWWFOK0ZKTDhVS2tyQUtnPT0iLCAidXNlcm5hbWUiOiAiQ2Q1ejJ0SW5uNFJRMCtWSlJuTVpsdz09In0sICJ0eXBlIjogIk9wYXF1ZSJ9"
+mutation_pub_key_b64 = "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUhZd0VBWUhLb1pJemowQ0FRWUZLNEVFQUNJRFlnQUVySFNyMEtpNk1IQjEyenFPVGNTaW43WkZaNkJwWmNDVgpkUDBUeWFQRmRLM3N2U0JjVTZnN2s5eTV6YmwyMzFrUUkyOHp0ZXpWWFdNSWp5WUUvMnNhcS9PcUZLNHU4VjkvCnExY2lueFlJUmo1UkVnMkFFRzVvMnF5am1YZGMrUEJkCi0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo="
 
 
-# create a class
-class TestXXXXX(unittest.TestCase):
-    # define a function
-    def test_xxxxxxx(self):
-        data = [100, 200, 300]
-        result = sum(data)
-        self.assertEqual(result, 600)
+def admission_response(allowed, uid, message):
+    print(
+        {
+            "apiVersion": "admission.k8s.io/v1",
+            "kind": "AdmissionReview",
+            "response": {
+                "uid": uid,
+                "allowed": allowed,
+                "status": {
+                    "message": f"{message}",
+                },
+            },
+        }
+    )
 
 
-# driver code
-if __name__ == "__main__":
-    unittest.main()
+signature = base64.b64decode(signature_b64.encode("utf-8"))
+yaml_file = base64.b64decode(yaml_file_b64.encode("utf-8"))
+public_key = base64.b64decode(mutation_pub_key_b64.encode("utf-8"))
+
+try:
+    public_key.verify(signature, yaml_file, ec.ECDSA(hashes.SHA256()))
+
+except:
+    admission_response(False, "1", f"Invalid signature !!! ...")
+else:
+    admission_response(True, "1", f"Integrity confirmed !!! ...")

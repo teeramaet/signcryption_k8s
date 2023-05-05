@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: 248624862486/mutate_sym_ecc:v1
+          image: kmitevski/webhook:gunicorn
           ports:
             - containerPort: 443
           env:
@@ -30,4 +30,4 @@ spec:
       volumes:
         - name: certs-volume
           secret:
-            secretName: admission-tls1
+            secretName: admission-tls

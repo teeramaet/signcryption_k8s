@@ -1,41 +1,34 @@
-import os
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
 import base64
-from cryptography.hazmat.primitives import padding
-import string
+import json
 
-key = os.urandom(32)
-iv = os.urandom(16)
-print(base64.b64encode(key).decode("utf-8"))
-
-print(base64.b64encode(iv).decode("utf-8"))
-cipher = Cipher(algorithms.AES256(key), modes.CBC(iv))
-encryptor = cipher.encryptor()
-ct = encryptor.update(b"a secret message") + encryptor.finalize()
-
-print(ct)
-padder = padding.PKCS7(128).padder()
-decryptor = cipher.decryptor()
-padded_data = padder.update(ct)
-padded_data += padder.finalize()
-pt = decryptor.update(ct) + decryptor.finalize()
-print(pt)
+yaml_file_b64 = base64.b64encode("iloveyou".encode("utf-8")).decode("utf-8")
 
 
-def remove_non_ascii(a_str):
-    ascii_chars = set(string.printable)
+private_key = ec.generate_private_key(ec.SECP384R1())
+mutation_pub_key = private_key.public_key()
+serialized_public = mutation_pub_key.public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+)
+mutation_pub_key_b64 = base64.b64encode(serialized_public).decode("utf-8")
 
-    return "".join(filter(lambda x: x in ascii_chars, a_str))
+signature = private_key.sign(yaml_file_b64.encode("utf-8"), ec.ECDSA(hashes.SHA256()))
+signature_b64 = base64.b64encode(signature).decode("utf-8")
 
 
-printable = set(string.printable)
-s = "QWRtaW4LCwsLCwsLCwsLC8BEhStZ6pIdM1qw8jdueOM=]"
-s = base64.b64decode(s)
-s = str(s)[2:-1]
-print(remove_non_ascii(s))
+signature2 = base64.b64decode(signature_b64.encode("utf-8"))
+mutation_pub_key2 = base64.b64decode(mutation_pub_key_b64.encode("utf-8"))
 
+mutation_pub_key2 = serialization.load_pem_public_key(
+    mutation_pub_key2,
+)
 
-separator = "\\"
-result = s.split(separator, 1)[0]
-print(result)  # 👉️ 'bobby'
+print(yaml_file_b64)
+print("\n")
 
+mutation_pub_key2.verify(
+    signature2, yaml_file_b64.encode("utf-8"), ec.ECDSA(hashes.SHA256())
+)

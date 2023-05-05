@@ -10,6 +10,6 @@ def show_original_message(s):
 
 if __name__ == "__main__":
     # -----------------------Check if the encryption and decryption process successfully -----------------------
-    base64_decrypt_string = "QWRtaW4LCwsLCwsLCwsLC8BEhStZ6pIdM1qw8jdueOM=]"
+    base64_decrypt_string = "YWNlc3Njb250cm9sBAQEBGvlodA50fjatZ9pRZKFbUM="
 
     print(show_original_message(base64_decrypt_string))

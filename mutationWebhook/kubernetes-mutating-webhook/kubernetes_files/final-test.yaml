@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: final-test
+  annotations:
+    webhoook-enabled: "true"
+type: Opaque
+data:
+  verySecret: on9XIbIc9UPWFjz+45gMNw==

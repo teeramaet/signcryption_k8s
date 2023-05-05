@@ -1,52 +1,63 @@
 from flask import Flask, request, jsonify
-from os import environ
 import logging
 import base64
 import cryptography
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
-
+from os import environ
+from cryptography.hazmat.primitives import serialization
 
 webhook = Flask(__name__)
 
-webhook.logger.setLevel(logging.INFO)
+
+gunicorn_logger = logging.getLogger("gunicorn.error")
+webhook.logger.handlers = gunicorn_logger.handlers
+webhook.logger.setLevel(gunicorn_logger.level)
 
 
 @webhook.route("/validate", methods=["POST"])
 def validate_request():
-    request = request.get_json()
-    uid = request["request"]["uid"]
-    object_in = request["request"]["object"]
+    webhook.logger.info("hellos")
+    req_data = request.get_json()
+    uid = req_data["request"].get("uid")
+    object_in = req_data["request"]["object"]
 
     if object_in["metadata"]["annotations"]:
-        if request["request"]["object"]["metadata"]["annotations"]["digitalSignature"]:
-            signature_b64 = request["request"]["object"]["metadata"]["annotations"][
-                "digitalSignature"
-            ]
+        if req_data["request"]["object"]["metadata"]["annotations"].get(
+            "digitalSignature"
+        ):
+            signature_b64 = req_data["request"]["object"]["metadata"][
+                "annotations"
+            ].get("digitalSignature")
         else:
             return admission_response(
                 False, uid, f"The digital Signature label aren't set!"
             )
 
-        if request["request"]["object"]["metadata"]["annotations"]["yamlFile"]:
-            yaml_file_b64 = request["request"]["object"]["metadata"]["annotations"][
-                "yamlFile"
-            ]
+        if req_data["request"]["object"]["metadata"]["annotations"]["yamlFile"]:
+            yaml_file_b64 = req_data["request"]["object"]["metadata"][
+                "annotations"
+            ].get("yamlFile")
         else:
             return admission_response(False, uid, f"The label aren't set!")
 
-        if request["request"]["object"]["metadata"]["annotations"]["mutate-pub-key"]:
-            mutation_pub_key_b64 = request["request"]["object"]["metadata"][
+        if req_data["request"]["object"]["metadata"]["annotations"].get(
+            "mutate-pub-key"
+        ):
+            mutation_pub_key_b64 = req_data["request"]["object"]["metadata"][
                 "annotations"
-            ]["mutate-pub-key"]
+            ].get("mutate-pub-key")
         else:
             return admission_response(
                 False, uid, f"The mutate-pub-key label aren't set!"
             )
 
         signature = base64.b64decode(signature_b64.encode("utf-8"))
-        yaml_file = base64.b64decode(yaml_file_b64.encode("utf-8"))
-        public_key = base64.b64decode(mutation_pub_key_b64.encode("utf-8"))
+        yaml_file = yaml_file_b64.encode("utf-8")
+        public_key_str = base64.b64decode(mutation_pub_key_b64.encode("utf-8"))
+        public_key = serialization.load_pem_public_key(
+            public_key_str,
+        )
 
         try:
             public_key.verify(signature, yaml_file, ec.ECDSA(hashes.SHA256()))
@@ -58,7 +69,7 @@ def validate_request():
 
     else:
         webhook.logger.error(
-            f'Object {request["request"]["object"]["kind"]}/{request["request"]["object"]["metadata"]["name"]} doesn\'t have the required label. Request rejected!'
+            f'Object {req_data["request"]["object"]["kind"]}/{req_data["request"]["object"]["metadata"]["name"]} doesn\'t have the required label. Request rejected!'
         )
         return admission_response(False, uid, f"The label aren't set!")
 
@@ -75,3 +86,7 @@ def admission_response(allowed, uid, message):
             },
         },
     }
+
+
+if __name__ == "__main__":
+    webhook.run(host="0.0.0.0", port=5000)

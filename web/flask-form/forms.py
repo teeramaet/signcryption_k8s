@@ -5,6 +5,6 @@ from wtforms import validators
 
 
 class Base64_Encrypt_Form(FlaskForm):
-    name = TextField("Name", [validators.Required("Name required")])
+    name = TextField("Message", [validators.Required("Name required")])
     last_name = TextField("Last Name")
     submit = SubmitField("Submit")

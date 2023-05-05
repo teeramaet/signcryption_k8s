@@ -9,10 +9,12 @@ webhooks:
     admissionReviewVersions: ["v1", "v1beta1"]
     rules:
       - apiGroups: ["*"]
-        resources: ["*/*"]
+        resources:
+          - "secrets"
         apiVersions:
           - "*"
-        operations: ["CREATE"]
+        operations:
+          - CREATE
     clientConfig:
       service:
         name: validate

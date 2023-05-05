@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: mutating-webhook
-          image: 248624862486/webhook_sym_ecc:v1
+          image: 248624862486/final-mutation:v1
           ports:
             - containerPort: 5000
           env:
